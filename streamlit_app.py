@@ -8,9 +8,9 @@ from reportlab.lib.styles import getSampleStyleSheet
 from reportlab.lib import colors
 
 
-# =========================
-# LOGIKA ENGSET
-# =========================
+# =====================================================
+# ENGSET LOGIC (TIDAK DIUBAH)
+# =====================================================
 
 def nCr(n, r):
     if r > n:
@@ -19,15 +19,15 @@ def nCr(n, r):
 
 
 def engset_pb(S, N, M):
-    num = nCr(S - 1, N) * (M ** N)
-    den = sum(nCr(S - 1, k) * (M ** k) for k in range(N + 1))
-    return num / den if den != 0 else 0
+    numerator = nCr(S - 1, N) * (M ** N)
+    denominator = sum(nCr(S - 1, k) * (M ** k) for k in range(N + 1))
+    return numerator / denominator if denominator != 0 else 0
 
 
-def iterate_engset(S, N, rho):
+def iterate(S, N, rho):
     M = rho
     tol = 0.0001
-    iter_data = []
+    data = []
 
     i = 1
     while True:
@@ -35,7 +35,7 @@ def iterate_engset(S, N, rho):
         M_new = rho * (1 - Pb)
         diff = abs(M_new - M)
 
-        iter_data.append([i, M, Pb, diff])
+        data.append([i, M, Pb, diff])
 
         if diff < tol:
             break
@@ -43,127 +43,156 @@ def iterate_engset(S, N, rho):
         M = M_new
         i += 1
 
-    return M_new, Pb, iter_data, i
+    return M_new, Pb, data, i
 
 
-# =========================
+# =====================================================
 # SESSION STATE
-# =========================
+# =====================================================
 
 if "history" not in st.session_state:
     st.session_state.history = []
 
-
-# =========================
-# UI
-# =========================
-
-st.title("📡 EngsetPro Simulator (Streamlit)")
-
-st.sidebar.header("Input Parameter")
-
-S = st.sidebar.number_input("Jumlah Source (S)", min_value=1, value=10)
-N = st.sidebar.number_input("Jumlah Channel (N)", min_value=1, value=3)
-rho = st.sidebar.number_input("Traffic per Source (ρ)", min_value=0.0, value=0.5)
+if "page" not in st.session_state:
+    st.session_state.page = "Home"
 
 
-# =========================
-# HITUNG
-# =========================
+# =====================================================
+# SIDEBAR NAVBAR (mirip navbar kamu)
+# =====================================================
 
-if st.button("HITUNG"):
+st.sidebar.title("ENGSETPRO")
 
-    if N >= S:
-        st.error("N harus lebih kecil dari S")
+if st.sidebar.button("🏠 Home"):
+    st.session_state.page = "Home"
+
+if st.sidebar.button("📈 Analisis"):
+    st.session_state.page = "Analisis"
+
+if st.sidebar.button("🕘 Riwayat"):
+    st.session_state.page = "Riwayat"
+
+
+# =====================================================
+# HOME PAGE (INPUT + RESULT)
+# =====================================================
+
+if st.session_state.page == "Home":
+
+    st.title("ENGSETPRO SIMULATOR")
+
+    st.subheader("Input Parameter")
+
+    S = st.number_input("Jumlah Source (S)", min_value=1, value=10)
+    N = st.number_input("Jumlah Channel (N)", min_value=1, value=3)
+    rho = st.number_input("Traffic per Source (ρ)", min_value=0.0, value=0.5)
+
+    if st.button("HITUNG SEKARANG"):
+
+        if N >= S:
+            st.error("N harus lebih kecil dari S")
+        else:
+            M, Pb, iter_data, iters = iterate(S, N, rho)
+
+            status = "OPTIMAL" if Pb < 0.2 else "PADAT"
+
+            st.session_state.result = {
+                "S": S,
+                "N": N,
+                "rho": rho,
+                "M": M,
+                "Pb": Pb,
+                "status": status,
+                "iter": iters,
+                "iter_data": iter_data,
+                "time": datetime.now().strftime("%d/%m/%Y %H:%M:%S")
+            }
+
+            st.session_state.history.append(st.session_state.result)
+
+    # RESULT DISPLAY
+    if "result" in st.session_state:
+
+        r = st.session_state.result
+
+        st.success("HASIL ANALISIS")
+
+        st.write("Blocking Probability:", round(r["Pb"], 6))
+        st.write("Traffic Idle (M):", round(r["M"], 6))
+        st.write("Iterasi:", r["iter"])
+        st.write("Status:", r["status"])
+
+
+# =====================================================
+# ANALISIS PAGE (TABLE + GRAPH)
+# =====================================================
+
+elif st.session_state.page == "Analisis":
+
+    st.title("GRAFIK ANALISIS")
+
+    if "result" not in st.session_state:
+        st.warning("Belum ada data")
     else:
-        M, Pb, iter_data, iters = iterate_engset(S, N, rho)
+        r = st.session_state.result
 
-        status = "OPTIMAL" if Pb < 0.2 else "PADAT"
+        st.subheader("Tabel Iterasi")
 
-        result = {
-            "S": S,
-            "N": N,
-            "rho": rho,
-            "M": M,
-            "Pb": Pb,
-            "status": status,
-            "iterasi": iters,
-            "waktu": datetime.now().strftime("%d/%m/%Y %H:%M:%S")
-        }
+        st.table(r["iter_data"])
 
-        st.session_state.last_result = result
-        st.session_state.iter_data = iter_data
-        st.session_state.history.append(result)
+        # GRAPH (SAMA LOGIKA)
+        S = r["S"]
+        rho = r["rho"]
 
+        x = list(range(1, S))
+        y = [engset_pb(S, n, rho) for n in x]
 
-# =========================
-# HASIL
-# =========================
+        fig, ax = plt.subplots()
+        ax.plot(x, y, marker="o")
+        ax.axhline(0.2, linestyle="--", color="red")
+        ax.set_xlabel("Channel")
+        ax.set_ylabel("P(b)")
+        ax.grid()
 
-if "last_result" in st.session_state:
-
-    r = st.session_state.last_result
-
-    st.subheader("📊 Hasil Analisis")
-
-    st.write(f"**Blocking Probability:** {r['Pb']:.6f}")
-    st.write(f"**Traffic Idle (M):** {r['M']:.6f}")
-    st.write(f"**Iterasi:** {r['iterasi']}")
-    st.write(f"**Status:** {r['status']}")
+        st.pyplot(fig)
 
 
-# =========================
-# ITERATION TABLE
-# =========================
+# =====================================================
+# HISTORY PAGE
+# =====================================================
 
-if "iter_data" in st.session_state:
+elif st.session_state.page == "Riwayat":
 
-    st.subheader("🔁 Iterasi Konvergensi")
+    st.title("RIWAYAT SIMULASI")
 
-    st.table(st.session_state.iter_data)
+    if st.session_state.history:
 
+        table = []
 
-# =========================
-# GRAFIK
-# =========================
+        for i, r in enumerate(st.session_state.history, 1):
+            table.append([
+                i,
+                r["time"],
+                r["S"],
+                r["N"],
+                r["rho"],
+                round(r["M"], 6),
+                round(r["Pb"], 6),
+                r["iter"],
+                r["status"]
+            ])
 
-if "last_result" in st.session_state:
+        st.table(table)
 
-    st.subheader("📈 Grafik Blocking Probability")
-
-    S = st.session_state.last_result["S"]
-    rho = st.session_state.last_result["rho"]
-
-    x = list(range(1, S))
-    y = [engset_pb(S, n, rho) for n in x]
-
-    fig, ax = plt.subplots()
-    ax.plot(x, y, marker="o")
-    ax.axhline(0.2, linestyle="--", color="red")
-    ax.set_xlabel("Channel")
-    ax.set_ylabel("P(b)")
-    ax.grid()
-
-    st.pyplot(fig)
+    else:
+        st.info("Belum ada riwayat")
 
 
-# =========================
-# HISTORY
-# =========================
-
-st.subheader("🕘 History")
-
-if st.session_state.history:
-    st.dataframe(st.session_state.history)
-else:
-    st.info("Belum ada data")
-
-
-# =========================
+# =====================================================
 # EXPORT PDF
-# =========================
+# =====================================================
 
-def export_pdf(data, filename="report.pdf"):
+def export_pdf(data, filename="engset_report.pdf"):
 
     doc = SimpleDocTemplate(filename)
     styles = getSampleStyleSheet()
@@ -173,12 +202,12 @@ def export_pdf(data, filename="report.pdf"):
     elements.append(Spacer(1, 12))
 
     text = f"""
-    S: {data['S']} <br/>
-    N: {data['N']} <br/>
-    ρ: {data['rho']} <br/>
-    M: {data['M']:.6f} <br/>
-    P(b): {data['Pb']:.6f} <br/>
-    Status: {data['status']} <br/>
+    S: {data['S']}<br/>
+    N: {data['N']}<br/>
+    ρ: {data['rho']}<br/>
+    M: {data['M']}<br/>
+    P(b): {data['Pb']}<br/>
+    Status: {data['status']}<br/>
     """
 
     elements.append(Paragraph(text, styles["BodyText"]))
@@ -186,6 +215,13 @@ def export_pdf(data, filename="report.pdf"):
     doc.build(elements)
 
 
-if st.button("EXPORT PDF") and "last_result" in st.session_state:
-    export_pdf(st.session_state.last_result)
-    st.success("PDF berhasil dibuat!")
+# BUTTON EXPORT
+if st.session_state.page == "Riwayat":
+
+    if st.button("EXPORT PDF"):
+
+        if st.session_state.history:
+            export_pdf(st.session_state.history[-1])
+            st.success("PDF berhasil dibuat")
+        else:
+            st.error("Tidak ada data")
