@@ -3,9 +3,11 @@ import matplotlib.pyplot as plt
 from math import factorial
 from datetime import datetime
 import io
+import base64
 
-from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer
+from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, Image
 from reportlab.lib.styles import getSampleStyleSheet
+from reportlab.lib import colors
 
 
 # =========================
@@ -19,28 +21,21 @@ st.set_page_config(
 
 
 # =========================
-# STYLE (simple clean UI)
+# STYLE UI (lebih clean)
 # =========================
 st.markdown("""
 <style>
-    .main-title {
-        font-size: 34px;
-        font-weight: 800;
-        color: #1f4fff;
-    }
-
-    .card {
-        padding: 20px;
-        border-radius: 15px;
-        background-color: #f5f7ff;
-        box-shadow: 0px 2px 8px rgba(0,0,0,0.08);
-        margin-bottom: 15px;
-    }
-
-    .subtitle {
-        font-size: 18px;
-        color: #666;
-    }
+.main-title {
+    font-size: 36px;
+    font-weight: 800;
+    color: #2563eb;
+}
+.card {
+    padding: 20px;
+    border-radius: 15px;
+    background: #f4f7ff;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.08);
+}
 </style>
 """, unsafe_allow_html=True)
 
@@ -71,7 +66,7 @@ def iterate(S, N, rho):
         M_new = rho * (1 - Pb)
         diff = abs(M_new - M)
 
-        data.append([i, round(M, 6), round(Pb, 6), round(diff, 6)])
+        data.append([i, M, Pb, diff])
 
         if diff < tol:
             break
@@ -90,26 +85,25 @@ if "history" not in st.session_state:
 
 
 # =========================
-# HEADER
+# SIDEBAR NAV (lebih bagus)
 # =========================
-st.markdown("<div class='main-title'>📡 EngsetPro Simulator</div>", unsafe_allow_html=True)
-st.markdown("<div class='subtitle'>Blocking Probability Analysis System</div>", unsafe_allow_html=True)
+st.sidebar.title("📡 EngsetPro Menu")
 
-st.divider()
+page = st.sidebar.radio(
+    "Navigation",
+    ["🏠 Dashboard", "📊 Analisis", "🕘 Riwayat"]
+)
+
+st.sidebar.divider()
+st.sidebar.info("Blocking Probability Simulator")
 
 
 # =========================
-# SIDEBAR NAVIGATION
+# DASHBOARD
 # =========================
-menu = st.sidebar.radio("Navigation", ["Home", "Analisis", "Riwayat"])
+if page == "🏠 Dashboard":
 
-
-# =========================
-# HOME PAGE
-# =========================
-if menu == "Home":
-
-    st.markdown("## 📥 Input Parameter")
+    st.markdown("<div class='main-title'>ENGSETPRO DASHBOARD</div>", unsafe_allow_html=True)
 
     col1, col2, col3 = st.columns(3)
 
@@ -124,7 +118,7 @@ if menu == "Home":
 
     st.divider()
 
-    if st.button("🚀 HITUNG SEKARANG"):
+    if st.button("🚀 RUN SIMULATION"):
 
         if N >= S:
             st.error("N harus lebih kecil dari S")
@@ -152,34 +146,34 @@ if menu == "Home":
 
         r = st.session_state.result
 
-        st.markdown("### 📊 Hasil")
+        st.success("HASIL SIMULASI")
 
-        col1, col2, col3, col4 = st.columns(4)
+        c1, c2, c3, c4 = st.columns(4)
 
-        col1.metric("Blocking Prob", f"{r['Pb']:.6f}")
-        col2.metric("Traffic Idle", f"{r['M']:.6f}")
-        col3.metric("Iterasi", r["iter"])
-        col4.metric("Status", r["status"])
+        c1.metric("Pb", f"{r['Pb']:.6f}")
+        c2.metric("M", f"{r['M']:.6f}")
+        c3.metric("Iterasi", r["iter"])
+        c4.metric("Status", r["status"])
 
 
 # =========================
-# ANALISIS PAGE
+# ANALISIS
 # =========================
-elif menu == "Analisis":
+elif page == "📊 Analisis":
 
-    st.markdown("## 📈 Analisis Sistem")
+    st.markdown("## 📊 Analisis Sistem Engset")
 
     if "result" not in st.session_state:
-        st.warning("Belum ada data perhitungan")
+        st.warning("Belum ada data")
     else:
+
         r = st.session_state.result
 
-        # ITERATION TABLE
-        st.markdown("### 🔁 Iterasi Konvergensi")
+        st.subheader("🔁 Iterasi Konvergensi")
         st.table(r["iter_data"])
 
-        # GRAPH
-        st.markdown("### 📊 Grafik Blocking Probability")
+        # ================= GRAPH =================
+        st.subheader("📈 Grafik Blocking Probability")
 
         S = r["S"]
         rho = r["rho"]
@@ -192,17 +186,17 @@ elif menu == "Analisis":
         ax.axhline(0.2, linestyle="--", color="red")
         ax.set_xlabel("Channel")
         ax.set_ylabel("P(b)")
-        ax.grid(True)
+        ax.grid()
 
         st.pyplot(fig)
 
 
 # =========================
-# HISTORY PAGE
+# RIWAYAT
 # =========================
-elif menu == "Riwayat":
+elif page == "🕘 Riwayat":
 
-    st.markdown("## 🕘 Riwayat Simulasi")
+    st.markdown("## 🕘 History Simulasi")
 
     if st.session_state.history:
 
@@ -224,13 +218,13 @@ elif menu == "Riwayat":
         st.dataframe(table, use_container_width=True)
 
     else:
-        st.info("Belum ada riwayat")
+        st.info("Belum ada history")
 
 
 # =========================
-# PDF EXPORT (STREAMLIT SAFE)
+# PDF EXPORT (FULL REPORT + GRAPH)
 # =========================
-def export_pdf(data):
+def export_pdf(data, fig):
 
     buffer = io.BytesIO()
     doc = SimpleDocTemplate(buffer)
@@ -238,10 +232,12 @@ def export_pdf(data):
     styles = getSampleStyleSheet()
     elements = []
 
-    elements.append(Paragraph("ENGSETPRO REPORT", styles["Title"]))
+    # COVER
+    elements.append(Paragraph("ENGSETPRO SIMULATOR REPORT", styles["Title"]))
     elements.append(Spacer(1, 12))
 
-    text = f"""
+    # PARAMETER
+    param = f"""
     S: {data['S']}<br/>
     N: {data['N']}<br/>
     ρ: {data['rho']}<br/>
@@ -251,30 +247,72 @@ def export_pdf(data):
     Iterasi: {data['iter']}<br/>
     """
 
-    elements.append(Paragraph(text, styles["BodyText"]))
+    elements.append(Paragraph(param, styles["BodyText"]))
+    elements.append(Spacer(1, 12))
+
+    # ITERATION TABLE
+    elements.append(Paragraph("TABEL ITERASI", styles["Heading2"]))
+
+    iter_table = [["Iterasi", "M", "P(b)", "Selisih"]]
+    iter_table += [[str(x) for x in row] for row in data["iter_data"]]
+
+    table = Table(iter_table)
+    table.setStyle(TableStyle([
+        ("BACKGROUND", (0,0), (-1,0), colors.blue),
+        ("TEXTCOLOR", (0,0), (-1,0), colors.white),
+        ("GRID", (0,0), (-1,-1), 0.5, colors.grey),
+    ]))
+
+    elements.append(table)
+    elements.append(Spacer(1, 12))
+
+    # GRAPH INSERT
+    img_buffer = io.BytesIO()
+    fig.savefig(img_buffer, format="png")
+    img_buffer.seek(0)
+
+    elements.append(Paragraph("GRAFIK BLOCKING PROBABILITY", styles["Heading2"]))
+    elements.append(Image(img_buffer, width=400, height=250))
+
+    elements.append(Spacer(1, 12))
+
+    # KESIMPULAN
+    conclusion = f"""
+    Sistem dalam kondisi <b>{data['status']}</b> berdasarkan nilai blocking probability.
+    """
+
+    elements.append(Paragraph(conclusion, styles["BodyText"]))
 
     doc.build(elements)
-
     buffer.seek(0)
+
     return buffer
 
 
 # =========================
-# DOWNLOAD PDF BUTTON
+# EXPORT BUTTON (FIXED)
 # =========================
-if menu == "Riwayat":
+if page == "🕘 Riwayat":
 
-    if st.button("📥 EXPORT PDF"):
+    if st.button("📥 EXPORT PDF") and st.session_state.history:
 
-        if st.session_state.history:
+        last = st.session_state.history[-1]
 
-            pdf = export_pdf(st.session_state.history[-1])
+        # recreate graph for PDF
+        S = last["S"]
+        rho = last["rho"]
 
-            st.download_button(
-                label="Download Report PDF",
-                data=pdf,
-                file_name="engset_report.pdf",
-                mime="application/pdf"
-            )
-        else:
-            st.error("Tidak ada data untuk diexport")
+        x = list(range(1, S))
+        y = [engset_pb(S, n, rho) for n in x]
+
+        fig, ax = plt.subplots()
+        ax.plot(x, y)
+
+        pdf = export_pdf(last, fig)
+
+        st.download_button(
+            "Download PDF Report",
+            data=pdf,
+            file_name="EngsetPro_Report.pdf",
+            mime="application/pdf"
+        )
