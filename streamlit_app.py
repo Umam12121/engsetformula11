@@ -6,10 +6,13 @@ import io
 
 from reportlab.platypus import (
     SimpleDocTemplate, Paragraph, Spacer,
-    Table, TableStyle, Image
+    Table, TableStyle, Image, HRFlowable
 )
-from reportlab.lib.styles import getSampleStyleSheet
+from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib import colors
+from reportlab.lib.pagesizes import A4
+from reportlab.lib.units import cm
+from reportlab.lib.enums import TA_CENTER, TA_LEFT
 
 
 # =========================
@@ -23,7 +26,7 @@ st.set_page_config(
 
 
 # =========================
-# UNPIX MOBILE-INSPIRED UI STYLE
+# UNPIX MOBILE-RESPONSIVE UI STYLE
 # =========================
 st.markdown("""
 <style>
@@ -50,44 +53,105 @@ html, body, [data-testid="stAppViewContainer"] {
     box-shadow: 4px 0 24px rgba(29,78,216,0.18);
 }
 
+[data-testid="stSidebar"] > div {
+    padding-top: 1.5rem !important;
+}
+
 [data-testid="stSidebar"] * {
     color: #e0eaff !important;
     font-family: 'Nunito', sans-serif !important;
 }
 
-[data-testid="stSidebar"] .stRadio label {
-    background: rgba(255,255,255,0.08);
-    border-radius: 14px;
-    padding: 10px 16px !important;
-    margin-bottom: 6px;
-    transition: background 0.2s;
-    font-weight: 600 !important;
-    font-size: 15px !important;
-    display: block;
-}
-
-[data-testid="stSidebar"] .stRadio label:hover {
-    background: rgba(255,255,255,0.18) !important;
-}
-
-[data-testid="stSidebar"] [data-testid="stMarkdownContainer"] p {
+/* ── Sidebar navigation label header ── */
+[data-testid="stSidebar"] .stRadio > label {
     color: #93c5fd !important;
-    font-size: 13px;
+    font-size: 12px !important;
+    font-weight: 700 !important;
+    text-transform: uppercase;
+    letter-spacing: 1.5px;
+    padding-bottom: 8px !important;
+    display: block;
+    margin-bottom: 4px;
+}
+
+/* ── Sidebar radio items ── */
+[data-testid="stSidebar"] .stRadio [data-testid="stWidgetLabel"] {
+    color: #93c5fd !important;
+    font-size: 12px !important;
+    font-weight: 700 !important;
+    text-transform: uppercase;
+    letter-spacing: 1.5px;
+    margin-bottom: 8px;
+}
+
+[data-testid="stSidebar"] .stRadio div[role="radiogroup"] {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+[data-testid="stSidebar"] .stRadio div[role="radiogroup"] label {
+    background: rgba(255,255,255,0.08) !important;
+    border-radius: 14px !important;
+    padding: 12px 16px !important;
+    margin: 0 !important;
+    transition: background 0.2s;
+    font-weight: 700 !important;
+    font-size: 14px !important;
+    display: flex !important;
+    align-items: center !important;
+    width: 100% !important;
+    cursor: pointer;
+    border: 1.5px solid transparent;
+}
+
+[data-testid="stSidebar"] .stRadio div[role="radiogroup"] label:hover {
+    background: rgba(255,255,255,0.16) !important;
+    border-color: rgba(255,255,255,0.15) !important;
+}
+
+[data-testid="stSidebar"] .stRadio div[role="radiogroup"] label[data-checked="true"],
+[data-testid="stSidebar"] .stRadio div[role="radiogroup"] [aria-checked="true"] ~ label {
+    background: rgba(255,255,255,0.22) !important;
+    border-color: rgba(255,255,255,0.3) !important;
+}
+
+/* Radio dot color */
+[data-testid="stSidebar"] .stRadio [data-testid="stMarkdownContainer"] p {
+    color: #93c5fd !important;
+    font-size: 12px;
+    line-height: 1.5;
 }
 
 [data-testid="stSidebar"] hr {
     border-color: rgba(255,255,255,0.15) !important;
+    margin: 16px 0 !important;
+}
+
+/* Sidebar info box */
+[data-testid="stSidebar"] [data-testid="stAlert"] {
+    background: rgba(255,255,255,0.10) !important;
+    border: 1px solid rgba(255,255,255,0.18) !important;
+    border-radius: 14px !important;
+    color: #bfdbfe !important;
+}
+
+[data-testid="stSidebar"] [data-testid="stAlert"] * {
+    color: #bfdbfe !important;
+    font-size: 13px !important;
 }
 
 /* ── Header Banner ── */
 .unpix-header {
     background: linear-gradient(135deg, #1d4ed8 0%, #2563eb 50%, #3b82f6 100%);
     border-radius: 24px;
-    padding: 28px 36px;
+    padding: 28px 32px;
     margin-bottom: 24px;
     display: flex;
     align-items: center;
     justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 12px;
     box-shadow: 0 8px 32px rgba(29,78,216,0.28);
     position: relative;
     overflow: hidden;
@@ -100,6 +164,7 @@ html, body, [data-testid="stAppViewContainer"] {
     width: 180px; height: 180px;
     background: rgba(255,255,255,0.07);
     border-radius: 50%;
+    pointer-events: none;
 }
 
 .unpix-header::after {
@@ -109,13 +174,12 @@ html, body, [data-testid="stAppViewContainer"] {
     width: 240px; height: 240px;
     background: rgba(255,255,255,0.05);
     border-radius: 50%;
+    pointer-events: none;
 }
-
-.header-left {}
 
 .header-app-name {
     font-family: 'Poppins', sans-serif;
-    font-size: 13px;
+    font-size: 12px;
     font-weight: 600;
     color: #93c5fd;
     letter-spacing: 2px;
@@ -125,7 +189,7 @@ html, body, [data-testid="stAppViewContainer"] {
 
 .header-title {
     font-family: 'Poppins', sans-serif;
-    font-size: 30px;
+    font-size: 28px;
     font-weight: 800;
     color: #ffffff;
     line-height: 1.1;
@@ -133,7 +197,7 @@ html, body, [data-testid="stAppViewContainer"] {
 }
 
 .header-subtitle {
-    font-size: 14px;
+    font-size: 13px;
     color: #bfdbfe;
     margin-top: 6px;
     font-weight: 500;
@@ -148,15 +212,16 @@ html, body, [data-testid="stAppViewContainer"] {
     font-size: 13px;
     font-weight: 700;
     backdrop-filter: blur(8px);
+    white-space: nowrap;
 }
 
 /* ── Section Title ── */
 .section-title {
     font-family: 'Poppins', sans-serif;
-    font-size: 17px;
+    font-size: 16px;
     font-weight: 700;
     color: #1e40af;
-    margin: 24px 0 12px 0;
+    margin: 20px 0 12px 0;
     display: flex;
     align-items: center;
     gap: 8px;
@@ -172,18 +237,33 @@ html, body, [data-testid="stAppViewContainer"] {
     margin-bottom: 16px;
 }
 
-/* ── Metric Cards ── */
+/* ── Metric Cards — responsive grid ── */
 .metric-grid {
     display: grid;
     grid-template-columns: repeat(4, 1fr);
-    gap: 14px;
+    gap: 12px;
     margin: 16px 0;
+}
+
+@media (max-width: 900px) {
+    .metric-grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+}
+
+@media (max-width: 480px) {
+    .metric-grid {
+        grid-template-columns: 1fr 1fr;
+        gap: 8px;
+    }
+    .header-title { font-size: 20px; }
+    .unpix-header { padding: 20px 18px; }
 }
 
 .metric-card {
     background: white;
     border-radius: 18px;
-    padding: 20px 16px;
+    padding: 18px 12px;
     border: 1.5px solid #dbeafe;
     box-shadow: 0 4px 16px rgba(29,78,216,0.07);
     text-align: center;
@@ -207,26 +287,27 @@ html, body, [data-testid="stAppViewContainer"] {
 }
 
 .metric-icon {
-    width: 44px; height: 44px;
+    width: 42px; height: 42px;
     border-radius: 14px;
     background: linear-gradient(135deg, #dbeafe, #eff6ff);
     display: flex; align-items: center; justify-content: center;
-    font-size: 20px;
+    font-size: 18px;
     margin: 0 auto 10px auto;
 }
 
 .metric-value {
     font-family: 'Poppins', sans-serif;
-    font-size: 22px;
+    font-size: 20px;
     font-weight: 800;
     color: #1e40af;
     line-height: 1;
+    word-break: break-all;
 }
 
 .metric-label {
-    font-size: 12px;
+    font-size: 10px;
     color: #64748b;
-    font-weight: 600;
+    font-weight: 700;
     margin-top: 4px;
     text-transform: uppercase;
     letter-spacing: 0.5px;
@@ -246,8 +327,8 @@ html, body, [data-testid="stAppViewContainer"] {
     color: #15803d;
     border: 1.5px solid #86efac;
     border-radius: 50px;
-    padding: 4px 16px;
-    font-size: 13px;
+    padding: 3px 12px;
+    font-size: 11px;
     font-weight: 700;
 }
 
@@ -257,8 +338,8 @@ html, body, [data-testid="stAppViewContainer"] {
     color: #b91c1c;
     border: 1.5px solid #fca5a5;
     border-radius: 50px;
-    padding: 4px 16px;
-    font-size: 13px;
+    padding: 3px 12px;
+    font-size: 11px;
     font-weight: 700;
 }
 
@@ -317,6 +398,7 @@ html, body, [data-testid="stAppViewContainer"] {
     font-family: 'Poppins', sans-serif !important;
     font-weight: 700 !important;
     box-shadow: 0 4px 16px rgba(15,118,110,0.30) !important;
+    width: 100%;
 }
 
 /* ── Divider ── */
@@ -344,7 +426,7 @@ hr {
     border-radius: 16px;
 }
 
-/* ── Fast Menu Cards (input area) ── */
+/* ── Input card ── */
 .input-card {
     background: white;
     border-radius: 20px;
@@ -367,18 +449,6 @@ hr {
     gap: 8px;
 }
 
-/* ── History table rows ── */
-.history-row {
-    background: white;
-    border-radius: 14px;
-    padding: 14px 20px;
-    margin-bottom: 8px;
-    border: 1.5px solid #dbeafe;
-    display: flex;
-    align-items: center;
-    gap: 16px;
-}
-
 /* ── Page Headings ── */
 h2, h3 {
     font-family: 'Poppins', sans-serif !important;
@@ -390,6 +460,11 @@ h2, h3 {
 ::-webkit-scrollbar { width: 6px; }
 ::-webkit-scrollbar-track { background: #eff6ff; }
 ::-webkit-scrollbar-thumb { background: #93c5fd; border-radius: 10px; }
+
+/* ── Column gap fix for mobile ── */
+[data-testid="stHorizontalBlock"] {
+    gap: 12px !important;
+}
 
 </style>
 """, unsafe_allow_html=True)
@@ -421,7 +496,7 @@ def iterate(S, N, rho):
         M_new = rho * (1 - Pb)
         diff = abs(M_new - M)
 
-        data.append([i, M, Pb, diff])
+        data.append([i, round(M, 16), round(Pb, 16), round(diff, 16)])
 
         if diff < tol:
             break
@@ -457,13 +532,20 @@ st.markdown("""
 # =========================
 # SIDEBAR NAV
 # =========================
-page = st.sidebar.radio(
-    "Navigation",
-    ["🏠 Dashboard", "📊 Analysis", "📁 History"]
-)
-
-st.sidebar.markdown("---")
-st.sidebar.info("Engineering Simulation Tool")
+with st.sidebar:
+    st.markdown(
+        '<div style="font-family:Poppins,sans-serif;font-size:11px;font-weight:700;'
+        'color:#93c5fd;text-transform:uppercase;letter-spacing:2px;'
+        'margin-bottom:10px;padding:0 4px;">Navigation</div>',
+        unsafe_allow_html=True
+    )
+    page = st.radio(
+        "",
+        ["🏠 Dashboard", "📊 Analysis", "📁 History"],
+        label_visibility="collapsed"
+    )
+    st.markdown("---")
+    st.info("Engineering Simulation Tool")
 
 
 # =========================
@@ -471,9 +553,9 @@ st.sidebar.info("Engineering Simulation Tool")
 # =========================
 if page == "🏠 Dashboard":
 
-    st.markdown('<div class="input-card"><div class="input-label">📥 Input Parameter</div>', unsafe_allow_html=True)
+    st.markdown('<div class="input-card"><div class="input-label">📥 Input Parameters</div>', unsafe_allow_html=True)
 
-    col1, col2, col3 = st.columns(3)
+    col1, col2, col3 = st.columns([1, 1, 1], gap="medium")
 
     with col1:
         S = st.number_input("Number of Sources (S)", min_value=1, value=10)
@@ -482,38 +564,32 @@ if page == "🏠 Dashboard":
         N = st.number_input("Number of Channels (N)", min_value=1, value=3)
 
     with col3:
-        rho = st.number_input("Traffic per Source (ρ)", min_value=0.0, value=0.5)
+        rho = st.number_input("Traffic per Source (ρ)", min_value=0.0, value=0.5, step=0.01, format="%.2f")
 
     st.markdown('</div>', unsafe_allow_html=True)
 
-    if st.button("🚀 RUN ANALYSIS"):
+    btn_col, _ = st.columns([1, 2])
+    with btn_col:
+        run = st.button("🚀 RUN ANALYSIS")
 
+    if run:
         if N >= S:
-            st.error("Channel must be smaller than Source (N < S)")
+            st.error("⚠️ Channel (N) must be smaller than Source (S). Please adjust your values.")
         else:
             M, Pb, iter_data, iters = iterate(S, N, rho)
-
             status = "OPTIMAL" if Pb < 0.2 else "CONGESTED"
 
             st.session_state.result = {
-                "S": S,
-                "N": N,
-                "rho": rho,
-                "M": M,
-                "Pb": Pb,
-                "status": status,
-                "iter": iters,
-                "iter_data": iter_data,
+                "S": S, "N": N, "rho": rho,
+                "M": M, "Pb": Pb, "status": status,
+                "iter": iters, "iter_data": iter_data,
                 "time": datetime.now().strftime("%d-%m-%Y %H:%M:%S")
             }
-
             st.session_state.history.append(st.session_state.result)
 
     # RESULT DASHBOARD
     if "result" in st.session_state:
-
         r = st.session_state.result
-
         status_class = "status-optimal" if r['status'] == "OPTIMAL" else "status-congested"
 
         st.markdown('<div class="section-title">📊 Results Overview</div>', unsafe_allow_html=True)
@@ -552,13 +628,15 @@ elif page == "📊 Analysis":
     st.markdown('<div class="section-title">📊 System Analysis</div>', unsafe_allow_html=True)
 
     if "result" not in st.session_state:
-        st.warning("No simulation data available. Please run an analysis on the Dashboard first.")
+        st.warning("⚠️ No simulation data. Please run an analysis on the Dashboard first.")
     else:
-
         r = st.session_state.result
 
         st.markdown('<div class="section-title">🔁 Convergence Iteration Table</div>', unsafe_allow_html=True)
-        st.dataframe(r["iter_data"], use_container_width=True)
+
+        import pandas as pd
+        df = pd.DataFrame(r["iter_data"], columns=["Iter", "M", "Pb", "Diff"])
+        st.dataframe(df, use_container_width=True, hide_index=True)
 
         st.markdown('<div class="section-title">📈 Blocking Probability Graph</div>', unsafe_allow_html=True)
 
@@ -573,7 +651,8 @@ elif page == "📊 Analysis":
         ax.set_facecolor('#f8faff')
 
         ax.fill_between(x, y, alpha=0.15, color="#1d4ed8")
-        ax.plot(x, y, linewidth=2.5, color="#1d4ed8", marker='o', markersize=5, markerfacecolor='white', markeredgewidth=2)
+        ax.plot(x, y, linewidth=2.5, color="#1d4ed8", marker='o',
+                markersize=5, markerfacecolor='white', markeredgewidth=2)
         ax.axhline(0.2, linestyle="--", color="#ef4444", linewidth=1.5, label="Threshold (0.2)")
 
         ax.set_xlabel("Number of Channels", fontsize=12, color="#374151", fontweight='bold')
@@ -597,124 +676,270 @@ elif page == "📁 History":
     st.markdown('<div class="section-title">📁 Simulation History</div>', unsafe_allow_html=True)
 
     if st.session_state.history:
+        import pandas as pd
 
-        table = []
-
+        rows = []
         for i, r in enumerate(st.session_state.history, 1):
-            table.append([
-                i,
-                r["time"],
-                r["S"],
-                r["N"],
-                r["rho"],
-                round(r["M"], 6),
-                round(r["Pb"], 6),
-                r["iter"],
-                r["status"]
-            ])
+            rows.append({
+                "#": i,
+                "Time": r["time"],
+                "S": r["S"],
+                "N": r["N"],
+                "ρ": r["rho"],
+                "M": round(r["M"], 6),
+                "Pb": round(r["Pb"], 6),
+                "Iter": r["iter"],
+                "Status": r["status"]
+            })
 
-        st.dataframe(table, use_container_width=True)
+        df_hist = pd.DataFrame(rows)
+        st.dataframe(df_hist, use_container_width=True, hide_index=True)
 
     else:
-        st.info("No history yet. Run a simulation on the Dashboard first.")
-
-
-# =========================
-# PROFESSIONAL PDF EXPORT
-# =========================
-def export_pdf(data, fig):
-
-    buffer = io.BytesIO()
-    doc = SimpleDocTemplate(buffer)
-
-    styles = getSampleStyleSheet()
-    elements = []
-
-    elements.append(Paragraph("ENGSETPRO SIMULATION REPORT", styles["Title"]))
-    elements.append(Spacer(1, 12))
-
-    elements.append(Paragraph("Professional Engset Blocking Probability Analysis", styles["BodyText"]))
-    elements.append(Spacer(1, 12))
-
-    elements.append(Paragraph("1. System Parameters", styles["Heading2"]))
-
-    param = f"""
-    <b>Sources (S):</b> {data['S']}<br/>
-    <b>Channels (N):</b> {data['N']}<br/>
-    <b>Traffic per Source (ρ):</b> {data['rho']}<br/>
-    <b>Idle Traffic (M):</b> {data['M']:.6f}<br/>
-    <b>Blocking Probability:</b> {data['Pb']:.6f}<br/>
-    <b>Status:</b> {data['status']}<br/>
-    <b>Iterations:</b> {data['iter']}<br/>
-    """
-
-    elements.append(Paragraph(param, styles["BodyText"]))
-    elements.append(Spacer(1, 12))
-
-    elements.append(Paragraph("2. Iteration Convergence", styles["Heading2"]))
-
-    table_data = [["Iter", "M", "Pb", "Diff"]]
-    table_data += [[str(x) for x in row] for row in data["iter_data"]]
-
-    table = Table(table_data)
-
-    table.setStyle(TableStyle([
-        ("BACKGROUND", (0,0), (-1,0), colors.HexColor("#1d4ed8")),
-        ("TEXTCOLOR", (0,0), (-1,0), colors.white),
-        ("GRID", (0,0), (-1,-1), 0.5, colors.grey),
-        ("FONTSIZE", (0,0), (-1,-1), 8),
-        ("ALIGN", (0,0), (-1,-1), "CENTER"),
-    ]))
-
-    elements.append(table)
-    elements.append(Spacer(1, 12))
-
-    img = io.BytesIO()
-    fig.savefig(img, format="png", dpi=200)
-    img.seek(0)
-
-    elements.append(Paragraph("3. Blocking Probability Graph", styles["Heading2"]))
-    elements.append(Image(img, width=450, height=250))
-
-    elements.append(Spacer(1, 12))
-
-    elements.append(Paragraph("4. Conclusion", styles["Heading2"]))
-
-    conclusion = f"""
-    The system is classified as <b>{data['status']}</b> based on the calculated blocking probability.
-    """
-
-    elements.append(Paragraph(conclusion, styles["BodyText"]))
-
-    doc.build(elements)
-    buffer.seek(0)
-
-    return buffer
-
-
-# =========================
-# EXPORT BUTTON
-# =========================
-if page == "📁 History":
+        st.info("📭 No history yet. Run a simulation on the Dashboard first.")
 
     st.markdown("---")
 
+    # =========================
+    # PROFESSIONAL PDF EXPORT
+    # =========================
+    def export_pdf(data, fig):
+        buffer = io.BytesIO()
+
+        doc = SimpleDocTemplate(
+            buffer,
+            pagesize=A4,
+            leftMargin=2*cm,
+            rightMargin=2*cm,
+            topMargin=2.5*cm,
+            bottomMargin=2.5*cm,
+        )
+
+        styles = getSampleStyleSheet()
+
+        # Custom styles
+        title_style = ParagraphStyle(
+            'CustomTitle',
+            parent=styles['Title'],
+            fontName='Helvetica-Bold',
+            fontSize=20,
+            spaceAfter=6,
+            textColor=colors.HexColor("#1d4ed8"),
+            alignment=TA_CENTER,
+        )
+
+        subtitle_style = ParagraphStyle(
+            'Subtitle',
+            parent=styles['Normal'],
+            fontName='Helvetica',
+            fontSize=11,
+            spaceAfter=20,
+            textColor=colors.HexColor("#64748b"),
+            alignment=TA_CENTER,
+        )
+
+        heading2_style = ParagraphStyle(
+            'CustomH2',
+            parent=styles['Heading2'],
+            fontName='Helvetica-Bold',
+            fontSize=13,
+            spaceBefore=16,
+            spaceAfter=8,
+            textColor=colors.HexColor("#1e40af"),
+        )
+
+        body_style = ParagraphStyle(
+            'CustomBody',
+            parent=styles['Normal'],
+            fontName='Helvetica',
+            fontSize=10,
+            leading=18,
+            textColor=colors.HexColor("#374151"),
+        )
+
+        label_style = ParagraphStyle(
+            'LabelStyle',
+            parent=styles['Normal'],
+            fontName='Helvetica-Bold',
+            fontSize=10,
+            leading=18,
+            textColor=colors.HexColor("#1e40af"),
+        )
+
+        elements = []
+
+        # ── Title block ──
+        elements.append(Paragraph("ENGSETPRO SIMULATION REPORT", title_style))
+        elements.append(Paragraph("Professional Engset Blocking Probability Analysis", subtitle_style))
+        elements.append(HRFlowable(width="100%", thickness=1.5,
+                                   color=colors.HexColor("#1d4ed8"), spaceAfter=12))
+
+        # ── 1. System Parameters ──
+        elements.append(Paragraph("1. System Parameters", heading2_style))
+
+        param_data = [
+            ["Parameter", "Value"],
+            ["Sources (S)", str(data['S'])],
+            ["Channels (N)", str(data['N'])],
+            ["Traffic per Source (ρ)", str(data['rho'])],
+            ["Idle Traffic (M)", f"{data['M']:.6f}"],
+            ["Blocking Probability (Pb)", f"{data['Pb']:.6f}"],
+            ["System Status", data['status']],
+            ["Iterations", str(data['iter'])],
+            ["Timestamp", data['time']],
+        ]
+
+        param_table = Table(param_data, colWidths=[7*cm, 9*cm])
+        param_table.setStyle(TableStyle([
+            # Header row
+            ("BACKGROUND",   (0, 0), (-1, 0), colors.HexColor("#1d4ed8")),
+            ("TEXTCOLOR",    (0, 0), (-1, 0), colors.white),
+            ("FONTNAME",     (0, 0), (-1, 0), "Helvetica-Bold"),
+            ("FONTSIZE",     (0, 0), (-1, 0), 10),
+            ("ALIGN",        (0, 0), (-1, 0), "CENTER"),
+            # Data rows
+            ("FONTNAME",     (0, 1), (0, -1), "Helvetica-Bold"),
+            ("FONTNAME",     (1, 1), (1, -1), "Helvetica"),
+            ("FONTSIZE",     (0, 1), (-1, -1), 10),
+            ("TEXTCOLOR",    (0, 1), (0, -1), colors.HexColor("#1e40af")),
+            ("TEXTCOLOR",    (1, 1), (1, -1), colors.HexColor("#374151")),
+            # Zebra rows
+            ("ROWBACKGROUNDS", (0, 1), (-1, -1),
+             [colors.HexColor("#f8faff"), colors.white]),
+            # Grid
+            ("GRID",         (0, 0), (-1, -1), 0.5, colors.HexColor("#dbeafe")),
+            ("LINEBELOW",    (0, 0), (-1, 0), 1.5, colors.HexColor("#1d4ed8")),
+            # Padding
+            ("TOPPADDING",   (0, 0), (-1, -1), 7),
+            ("BOTTOMPADDING",(0, 0), (-1, -1), 7),
+            ("LEFTPADDING",  (0, 0), (-1, -1), 10),
+            ("RIGHTPADDING", (0, 0), (-1, -1), 10),
+            ("VALIGN",       (0, 0), (-1, -1), "MIDDLE"),
+            # Status color
+            ("TEXTCOLOR",    (1, 6), (1, 6),
+             colors.HexColor("#15803d") if data['status'] == "OPTIMAL"
+             else colors.HexColor("#b91c1c")),
+            ("FONTNAME",     (1, 6), (1, 6), "Helvetica-Bold"),
+        ]))
+
+        elements.append(param_table)
+        elements.append(Spacer(1, 16))
+
+        # ── 2. Iteration Convergence ──
+        elements.append(Paragraph("2. Iteration Convergence", heading2_style))
+
+        col_widths = [2*cm, 5*cm, 5*cm, 4*cm]
+        iter_header = [["Iter", "M", "Pb", "Diff"]]
+        iter_rows = [[str(row[0]),
+                      f"{row[1]:.10f}",
+                      f"{row[2]:.10f}",
+                      f"{row[3]:.2e}"] for row in data["iter_data"]]
+        table_data = iter_header + iter_rows
+
+        iter_table = Table(table_data, colWidths=col_widths, repeatRows=1)
+        iter_table.setStyle(TableStyle([
+            # Header
+            ("BACKGROUND",   (0, 0), (-1, 0), colors.HexColor("#1d4ed8")),
+            ("TEXTCOLOR",    (0, 0), (-1, 0), colors.white),
+            ("FONTNAME",     (0, 0), (-1, 0), "Helvetica-Bold"),
+            ("FONTSIZE",     (0, 0), (-1, 0), 9),
+            ("ALIGN",        (0, 0), (-1, 0), "CENTER"),
+            # Data
+            ("FONTNAME",     (0, 1), (-1, -1), "Helvetica"),
+            ("FONTSIZE",     (0, 1), (-1, -1), 8),
+            ("ALIGN",        (0, 1), (-1, -1), "CENTER"),
+            ("ROWBACKGROUNDS",(0, 1), (-1, -1),
+             [colors.HexColor("#f8faff"), colors.white]),
+            ("GRID",         (0, 0), (-1, -1), 0.4, colors.HexColor("#dbeafe")),
+            ("LINEBELOW",    (0, 0), (-1, 0), 1.5, colors.HexColor("#1d4ed8")),
+            ("TOPPADDING",   (0, 0), (-1, -1), 5),
+            ("BOTTOMPADDING",(0, 0), (-1, -1), 5),
+            ("VALIGN",       (0, 0), (-1, -1), "MIDDLE"),
+        ]))
+
+        elements.append(iter_table)
+        elements.append(Spacer(1, 16))
+
+        # ── 3. Blocking Probability Graph ──
+        elements.append(Paragraph("3. Blocking Probability Graph", heading2_style))
+
+        img_buf = io.BytesIO()
+        fig.savefig(img_buf, format="png", dpi=180, bbox_inches='tight',
+                    facecolor='#f8faff')
+        img_buf.seek(0)
+
+        chart_img = Image(img_buf, width=16*cm, height=8*cm)
+        elements.append(chart_img)
+        elements.append(Spacer(1, 16))
+
+        # ── 4. Conclusion ──
+        elements.append(HRFlowable(width="100%", thickness=1,
+                                   color=colors.HexColor("#dbeafe"), spaceAfter=8))
+        elements.append(Paragraph("4. Conclusion", heading2_style))
+
+        color_word = "#15803d" if data['status'] == "OPTIMAL" else "#b91c1c"
+        conclusion = (
+            f'Based on the Engset iterative model with <b>S={data["S"]}</b> sources, '
+            f'<b>N={data["N"]}</b> channels, and traffic intensity <b>ρ={data["rho"]}</b>, '
+            f'the system converged in <b>{data["iter"]} iterations</b>. '
+            f'The calculated blocking probability is <b>{data["Pb"]:.6f}</b> '
+            f'with idle traffic <b>M={data["M"]:.6f}</b>. '
+            f'The system is classified as '
+            f'<font color="{color_word}"><b>{data["status"]}</b></font>.'
+        )
+        elements.append(Paragraph(conclusion, body_style))
+
+        # Footer spacer
+        elements.append(Spacer(1, 20))
+        elements.append(HRFlowable(width="100%", thickness=0.5,
+                                   color=colors.HexColor("#dbeafe"), spaceAfter=4))
+
+        footer_style = ParagraphStyle(
+            'Footer',
+            parent=styles['Normal'],
+            fontName='Helvetica',
+            fontSize=8,
+            textColor=colors.HexColor("#94a3b8"),
+            alignment=TA_CENTER,
+        )
+        elements.append(Paragraph(
+            f"Generated by EngsetPro Professional · {data['time']}",
+            footer_style
+        ))
+
+        doc.build(elements)
+        buffer.seek(0)
+        return buffer
+
+    # Export button
     if st.button("📥 EXPORT PROFESSIONAL REPORT"):
-
         if st.session_state.history:
-
             last = st.session_state.history[-1]
-
             S = last["S"]
             rho = last["rho"]
 
             x = list(range(1, S))
             y = [engset_pb(S, n, rho) for n in x]
 
-            fig, ax = plt.subplots()
-            ax.plot(x, y, color="#1d4ed8")
-            ax.axhline(0.2, linestyle="--", color="red")
-            ax.grid()
+            fig, ax = plt.subplots(figsize=(10, 4))
+            fig.patch.set_facecolor('#f8faff')
+            ax.set_facecolor('#f8faff')
+            ax.fill_between(x, y, alpha=0.15, color="#1d4ed8")
+            ax.plot(x, y, linewidth=2.5, color="#1d4ed8", marker='o',
+                    markersize=5, markerfacecolor='white', markeredgewidth=2)
+            ax.axhline(0.2, linestyle="--", color="#ef4444",
+                       linewidth=1.5, label="Threshold (0.2)")
+            ax.set_xlabel("Number of Channels", fontsize=11,
+                          color="#374151", fontweight='bold')
+            ax.set_ylabel("Blocking Probability", fontsize=11,
+                          color="#374151", fontweight='bold')
+            ax.grid(True, color='#dbeafe', linewidth=1)
+            ax.spines['top'].set_visible(False)
+            ax.spines['right'].set_visible(False)
+            ax.spines['left'].set_color('#dbeafe')
+            ax.spines['bottom'].set_color('#dbeafe')
+            ax.tick_params(colors='#64748b')
+            ax.legend(fontsize=10)
 
             pdf = export_pdf(last, fig)
 
@@ -725,4 +950,4 @@ if page == "📁 History":
                 mime="application/pdf"
             )
         else:
-            st.error("No data to export")
+            st.error("⚠️ No data to export. Run a simulation first.")
