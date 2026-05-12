@@ -10,7 +10,7 @@ from reportlab.platypus import (
 )
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib import colors
-from reportlab.lib.enums import TA_CENTER, TA_LEFT
+from reportlab.lib.enums import TA_CENTER
 
 # =========================
 # KONFIGURASI HALAMAN
@@ -23,32 +23,33 @@ st.set_page_config(
 )
 
 # =========================
-# TEMA STARTUP MODERN (BIRU - PUTIH)
+# TEMA STARTUP MODERN
 # =========================
 st.markdown("""
 <style>
-
 html, body, [class*='css'] {
     font-family: 'Inter', sans-serif;
     background: #f8fafc;
 }
 
-.header {
-    padding: 28px;
-    border-radius: 16px;
+/* TOP NAVBAR STYLE */
+.navbar {
     background: linear-gradient(135deg, #1d4ed8, #3b82f6);
+    padding: 14px 20px;
+    border-radius: 14px;
     color: white;
-    box-shadow: 0 10px 25px rgba(29,78,216,0.25);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    box-shadow: 0 8px 20px rgba(29,78,216,0.25);
 }
 
-.header h1 {
+.navbar h1 {
+    font-size: 20px;
     margin: 0;
-    font-size: 34px;
-    font-weight: 800;
 }
 
-.header p {
-    margin-top: 6px;
+.navbar small {
     opacity: 0.9;
 }
 
@@ -73,7 +74,6 @@ html, body, [class*='css'] {
     font-weight: 600;
     border-radius: 12px;
     padding: 10px 18px;
-    border: none;
 }
 
 .stButton > button:hover {
@@ -92,12 +92,12 @@ section[data-testid="stSidebar"] * {
 """, unsafe_allow_html=True)
 
 # =========================
-# HEADER
+# NAVBAR
 # =========================
 st.markdown("""
-<div class='header'>
-    <h1>📡 EngsetPro</h1>
-    <p>Simulasi Probabilitas Blocking Sistem Telekomunikasi (Gaya Startup Profesional)</p>
+<div class='navbar'>
+    <h1>📡 EngsetPro Simulator</h1>
+    <small>Sistem Analisis Telekomunikasi Profesional</small>
 </div>
 """, unsafe_allow_html=True)
 
@@ -142,18 +142,18 @@ if "history" not in st.session_state:
     st.session_state.history = []
 
 # =========================
-# SIDEBAR
+# SIDEBAR MENU (lebih modern)
 # =========================
-st.sidebar.title("📌 Menu Navigasi")
-page = st.sidebar.radio("Pilih Halaman", ["Dashboard", "Analisis", "Riwayat"])
+st.sidebar.markdown("## 📊 MENU")
+page = st.sidebar.radio("Navigasi", ["🏠 Dashboard", "📈 Analisis", "📁 Riwayat"])
 
 st.sidebar.markdown("---")
-st.sidebar.caption("EngsetPro v2 • Sistem Simulasi Telekomunikasi")
+st.sidebar.caption("EngsetPro • Startup Simulation Tool")
 
 # =========================
 # DASHBOARD
 # =========================
-if page == "Dashboard":
+if page == "🏠 Dashboard":
 
     st.markdown("### 📥 Input Parameter Sistem")
 
@@ -196,15 +196,15 @@ if page == "Dashboard":
 
         c1, c2, c3, c4 = st.columns(4)
 
-        c1.metric("Probabilitas Blocking", f"{r['Pb']:.6f}")
-        c2.metric("Traffic Idle", f"{r['M']:.6f}")
+        c1.metric("Blocking Probability", f"{r['Pb']:.6f}")
+        c2.metric("Idle Traffic", f"{r['M']:.6f}")
         c3.metric("Iterasi", r["iter"])
-        c4.metric("Status Sistem", r["status"])
+        c4.metric("Status", r["status"])
 
 # =========================
 # ANALISIS
 # =========================
-elif page == "Analisis":
+elif page == "📈 Analisis":
 
     st.markdown("### 📊 Analisis Sistem")
 
@@ -213,10 +213,7 @@ elif page == "Analisis":
     else:
         r = st.session_state.result
 
-        st.markdown("#### Tabel Konvergensi Iterasi")
         st.dataframe(r["iter_data"], use_container_width=True)
-
-        st.markdown("#### Grafik Probabilitas Blocking")
 
         S = r["S"]
         rho = r["rho"]
@@ -227,26 +224,52 @@ elif page == "Analisis":
         fig, ax = plt.subplots()
         ax.plot(x, y, linewidth=2)
         ax.axhline(0.2, linestyle="--", color="red")
-        ax.set_xlabel("Jumlah Kanal")
-        ax.set_ylabel("Probabilitas Blocking")
         ax.grid(True, alpha=0.3)
 
         st.pyplot(fig)
 
 # =========================
-# RIWAYAT
+# RIWAYAT + DOWNLOAD PDF (FIXED)
 # =========================
-elif page == "Riwayat":
+elif page == "📁 Riwayat":
 
     st.markdown("### 📁 Riwayat Simulasi")
 
     if st.session_state.history:
         st.dataframe(st.session_state.history, use_container_width=True)
+
+        st.markdown("---")
+
+        # ================= EXPORT BUTTON FIX =================
+        if st.button("📄 Download Laporan PDF Profesional"):
+
+            last = st.session_state.history[-1]
+
+            S = last["S"]
+            rho = last["rho"]
+
+            x = list(range(1, S))
+            y = [engset_pb(S, n, rho) for n in x]
+
+            fig, ax = plt.subplots()
+            ax.plot(x, y)
+            ax.axhline(0.2, linestyle="--", color="red")
+            ax.grid()
+
+            pdf = export_pdf(last, fig)
+
+            st.download_button(
+                label="⬇️ Unduh PDF",
+                data=pdf,
+                file_name="EngsetPro_Report_Professional.pdf",
+                mime="application/pdf"
+            )
+
     else:
         st.info("Belum ada riwayat")
 
 # =========================
-# PDF PROFESIONAL EXPORT (DITINGKATKAN)
+# PDF PROFESIONAL
 # =========================
 def export_pdf(data, fig):
 
@@ -256,84 +279,77 @@ def export_pdf(data, fig):
     styles = getSampleStyleSheet()
 
     title_style = ParagraphStyle(
-        'TitleStyle',
-        parent=styles['Title'],
+        "title",
+        parent=styles["Title"],
         alignment=TA_CENTER,
-        fontSize=20,
+        fontSize=18,
         textColor=colors.HexColor("#1d4ed8")
     )
 
-    normal_style = ParagraphStyle(
-        'NormalStyle',
-        parent=styles['BodyText'],
+    normal = ParagraphStyle(
+        "normal",
+        parent=styles["BodyText"],
         fontSize=10,
         leading=14
     )
 
     elements = []
 
-    # COVER
-    elements.append(Paragraph("ENGSETPRO SIMULATION REPORT", title_style))
+    elements.append(Paragraph("LAPORAN ANALISIS ENGSETPRO", title_style))
     elements.append(Spacer(1, 10))
 
-    elements.append(Paragraph(
-        "Laporan Analisis Probabilitas Blocking Sistem Telekomunikasi Berbasis Model Engset",
-        normal_style
-    ))
-    elements.append(Spacer(1, 20))
-
-    # PARAMETER
-    elements.append(Paragraph("1. Parameter Sistem", styles['Heading2']))
-
-    param = f"""
-    Sumber (S): {data['S']}<br/>
-    Kanal (N): {data['N']}<br/>
-    Traffic per Sumber (ρ): {data['rho']}<br/>
-    Traffic Idle (M): {data['M']:.6f}<br/>
-    Probabilitas Blocking: {data['Pb']:.6f}<br/>
-    Status: {data['status']}<br/>
-    Iterasi: {data['iter']}<br/>
-    """
-
-    elements.append(Paragraph(param, normal_style))
+    elements.append(Paragraph("Simulasi Probabilitas Blocking Sistem Telekomunikasi", normal))
     elements.append(Spacer(1, 15))
 
-    # TABEL
-    elements.append(Paragraph("2. Konvergensi Iterasi", styles['Heading2']))
+    # PARAMETER
+    elements.append(Paragraph("1. Parameter Sistem", styles["Heading2"]))
 
-    table_data = [["Iterasi", "M", "Pb", "Selisih"]]
+    param = f"""
+    Sumber: {data['S']}<br/>
+    Kanal: {data['N']}<br/>
+    Traffic: {data['rho']}<br/>
+    Idle Traffic: {data['M']:.6f}<br/>
+    Blocking: {data['Pb']:.6f}<br/>
+    Status: {data['status']}<br/>
+    Iterasi: {data['iter']}
+    """
+
+    elements.append(Paragraph(param, normal))
+    elements.append(Spacer(1, 15))
+
+    # TABLE
+    table_data = [["Iter", "M", "Pb", "Diff"]]
     table_data += [[str(x) for x in row] for row in data["iter_data"]]
 
     table = Table(table_data)
-
     table.setStyle(TableStyle([
         ("BACKGROUND", (0,0), (-1,0), colors.HexColor("#1d4ed8")),
         ("TEXTCOLOR", (0,0), (-1,0), colors.white),
-        ("ALIGN", (0,0), (-1,-1), "CENTER"),
         ("GRID", (0,0), (-1,-1), 0.5, colors.grey),
         ("FONTSIZE", (0,0), (-1,-1), 8),
-        ("BOTTOMPADDING", (0,0), (-1,0), 8)
+        ("ALIGN", (0,0), (-1,-1), "CENTER")
     ]))
 
     elements.append(table)
     elements.append(Spacer(1, 15))
 
-    # GRAFIK
+    # GRAPH
     img = io.BytesIO()
     fig.savefig(img, format="png", dpi=250, bbox_inches='tight')
     img.seek(0)
 
-    elements.append(Paragraph("3. Grafik Probabilitas Blocking", styles['Heading2']))
+    elements.append(Paragraph("2. Grafik Analisis", styles["Heading2"]))
     elements.append(Image(img, width=450, height=250))
 
     elements.append(Spacer(1, 15))
 
-    # KESIMPULAN
-    elements.append(Paragraph("4. Kesimpulan", styles['Heading2']))
+    # CONCLUSION
+    elements.append(Paragraph("3. Kesimpulan", styles["Heading2"]))
 
-    conclusion = f"Sistem berada dalam kondisi <b>{data['status']}</b> berdasarkan hasil analisis probabilitas blocking."
-
-    elements.append(Paragraph(conclusion, normal_style))
+    elements.append(Paragraph(
+        f"Sistem berada dalam kondisi <b>{data['status']}</b> berdasarkan analisis probabilitas blocking.",
+        normal
+    ))
 
     doc.build(elements)
     buffer.seek(0)
