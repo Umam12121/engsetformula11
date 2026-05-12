@@ -1,18 +1,17 @@
 import streamlit as st
-import pandas as pd
 import matplotlib.pyplot as plt
 from math import factorial
 from datetime import datetime
-from io import BytesIO
+
+from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
+from reportlab.lib.styles import getSampleStyleSheet
+from reportlab.lib import colors
+
 
 # =========================
-# CONFIG
+# LOGIKA ENGSET
 # =========================
-st.set_page_config(page_title="EngsetPro Simulator", layout="wide")
 
-# =========================
-# FUNCTION
-# =========================
 def nCr(n, r):
     if r > n:
         return 0
@@ -20,72 +19,64 @@ def nCr(n, r):
 
 
 def engset_pb(S, N, M):
-    numerator = nCr(S - 1, N) * (M ** N)
-    denominator = 0
+    num = nCr(S - 1, N) * (M ** N)
+    den = sum(nCr(S - 1, k) * (M ** k) for k in range(N + 1))
+    return num / den if den != 0 else 0
 
-    for k in range(N + 1):
-        denominator += nCr(S - 1, k) * (M ** k)
 
-    return numerator / denominator if denominator != 0 else 0
+def iterate_engset(S, N, rho):
+    M = rho
+    tol = 0.0001
+    iter_data = []
+
+    i = 1
+    while True:
+        Pb = engset_pb(S, N, M)
+        M_new = rho * (1 - Pb)
+        diff = abs(M_new - M)
+
+        iter_data.append([i, M, Pb, diff])
+
+        if diff < tol:
+            break
+
+        M = M_new
+        i += 1
+
+    return M_new, Pb, iter_data, i
 
 
 # =========================
-# SESSION STATE (HISTORY)
+# SESSION STATE
 # =========================
+
 if "history" not in st.session_state:
     st.session_state.history = []
 
-if "last_iter" not in st.session_state:
-    st.session_state.last_iter = []
 
-if "last_result" not in st.session_state:
-    st.session_state.last_result = None
+# =========================
+# UI
+# =========================
+
+st.title("📡 EngsetPro Simulator (Streamlit)")
+
+st.sidebar.header("Input Parameter")
+
+S = st.sidebar.number_input("Jumlah Source (S)", min_value=1, value=10)
+N = st.sidebar.number_input("Jumlah Channel (N)", min_value=1, value=3)
+rho = st.sidebar.number_input("Traffic per Source (ρ)", min_value=0.0, value=0.5)
 
 
 # =========================
-# SIDEBAR MENU (NAVBAR STYLE)
+# HITUNG
 # =========================
-menu = st.sidebar.selectbox(
-    "📌 MENU",
-    ["🏠 Dashboard", "📊 Analisis", "🕘 Riwayat"]
-)
 
+if st.button("HITUNG"):
 
-# =========================
-# DASHBOARD
-# =========================
-if menu == "🏠 Dashboard":
-
-    st.title("📡 EngsetPro Simulator")
-
-    S = st.number_input("Jumlah Source (S)", min_value=1, step=1)
-    N = st.number_input("Jumlah Channel (N)", min_value=1, step=1)
-    rho = st.number_input("Traffic per Source (ρ)", value=1.0)
-
-    if st.button("🚀 HITUNG"):
-
-        if N >= S:
-            st.error("N harus lebih kecil dari S")
-            st.stop()
-
-        M = rho
-        tol = 0.0001
-        iterasi = []
-
-        i = 1
-
-        while True:
-            Pb = engset_pb(S, N, M)
-            M_new = rho * (1 - Pb)
-            diff = abs(M_new - M)
-
-            iterasi.append([i, M, Pb, diff])
-
-            if diff < tol:
-                break
-
-            M = M_new
-            i += 1
+    if N >= S:
+        st.error("N harus lebih kecil dari S")
+    else:
+        M, Pb, iter_data, iters = iterate_engset(S, N, rho)
 
         status = "OPTIMAL" if Pb < 0.2 else "PADAT"
 
@@ -93,85 +84,108 @@ if menu == "🏠 Dashboard":
             "S": S,
             "N": N,
             "rho": rho,
-            "M": M_new,
+            "M": M,
             "Pb": Pb,
             "status": status,
-            "time": datetime.now().strftime("%d-%m-%Y %H:%M:%S"),
-            "iter": i
+            "iterasi": iters,
+            "waktu": datetime.now().strftime("%d/%m/%Y %H:%M:%S")
         }
 
         st.session_state.last_result = result
-        st.session_state.last_iter = iterasi
+        st.session_state.iter_data = iter_data
         st.session_state.history.append(result)
 
-        st.success(f"Status: {status}")
 
-        st.metric("P(b)", f"{Pb:.6f}")
-        st.metric("Traffic Idle (M)", f"{M_new:.6f}")
-        st.metric("Iterasi", i)
+# =========================
+# HASIL
+# =========================
+
+if "last_result" in st.session_state:
+
+    r = st.session_state.last_result
+
+    st.subheader("📊 Hasil Analisis")
+
+    st.write(f"**Blocking Probability:** {r['Pb']:.6f}")
+    st.write(f"**Traffic Idle (M):** {r['M']:.6f}")
+    st.write(f"**Iterasi:** {r['iterasi']}")
+    st.write(f"**Status:** {r['status']}")
 
 
 # =========================
-# ANALISIS
+# ITERATION TABLE
 # =========================
-elif menu == "📊 Analisis":
 
-    st.title("📊 Analisis Sistem")
+if "iter_data" in st.session_state:
 
-    if st.session_state.last_result:
+    st.subheader("🔁 Iterasi Konvergensi")
 
-        data = st.session_state.last_iter
-
-        df = pd.DataFrame(
-            data,
-            columns=["Iterasi", "M", "P(b)", "Selisih"]
-        )
-
-        st.subheader("Tabel Iterasi")
-        st.dataframe(df, use_container_width=True)
-
-        S = st.session_state.last_result["S"]
-        rho = st.session_state.last_result["rho"]
-
-        x = list(range(1, S))
-        y = [engset_pb(S, n, rho) for n in x]
-
-        fig, ax = plt.subplots()
-        ax.plot(x, y, marker="o")
-        ax.axhline(0.2, linestyle="--", color="red")
-        ax.set_title("Blocking Probability")
-        ax.set_xlabel("Channel")
-        ax.set_ylabel("P(b)")
-        ax.grid(True)
-
-        st.pyplot(fig)
-
-    else:
-        st.warning("Belum ada data. Jalankan simulasi dulu.")
+    st.table(st.session_state.iter_data)
 
 
 # =========================
-# RIWAYAT
+# GRAFIK
 # =========================
-elif menu == "🕘 Riwayat":
 
-    st.title("🕘 Riwayat Simulasi")
+if "last_result" in st.session_state:
 
-    if st.session_state.history:
+    st.subheader("📈 Grafik Blocking Probability")
 
-        df = pd.DataFrame(st.session_state.history)
+    S = st.session_state.last_result["S"]
+    rho = st.session_state.last_result["rho"]
 
-        st.dataframe(df, use_container_width=True)
+    x = list(range(1, S))
+    y = [engset_pb(S, n, rho) for n in x]
 
-        csv = df.to_csv(index=False).encode("utf-8")
+    fig, ax = plt.subplots()
+    ax.plot(x, y, marker="o")
+    ax.axhline(0.2, linestyle="--", color="red")
+    ax.set_xlabel("Channel")
+    ax.set_ylabel("P(b)")
+    ax.grid()
 
-        st.download_button(
-            "⬇️ Download CSV",
-            csv,
-            "engset_history.csv",
-            "text/csv"
-        )
+    st.pyplot(fig)
 
-    else:
-        st.info("Belum ada riwayat")
 
+# =========================
+# HISTORY
+# =========================
+
+st.subheader("🕘 History")
+
+if st.session_state.history:
+    st.dataframe(st.session_state.history)
+else:
+    st.info("Belum ada data")
+
+
+# =========================
+# EXPORT PDF
+# =========================
+
+def export_pdf(data, filename="report.pdf"):
+
+    doc = SimpleDocTemplate(filename)
+    styles = getSampleStyleSheet()
+    elements = []
+
+    elements.append(Paragraph("ENGSETPRO REPORT", styles["Title"]))
+    elements.append(Spacer(1, 12))
+
+    text = f"""
+    S: {data['S']} <br/>
+    N: {data['N']} <br/>
+    ρ: {data['rho']} <br/>
+    M: {data['M']:.6f} <br/>
+    P(b): {data['Pb']:.6f} <br/>
+    Status: {data['status']} <br/>
+    """
+
+    elements.append(Paragraph(text, styles["BodyText"]))
+
+    doc.build(elements)
+
+
+if st.button("EXPORT PDF") and "last_result" in st.session_state:
+    export_pdf(st.session_state.last_result)
+    st.success("PDF berhasil dibuat!")
