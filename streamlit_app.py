@@ -8,76 +8,111 @@ from reportlab.platypus import (
     SimpleDocTemplate, Paragraph, Spacer,
     Table, TableStyle, Image
 )
-from reportlab.lib.styles import getSampleStyleSheet
+from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib import colors
-
+from reportlab.lib.enums import TA_CENTER, TA_LEFT
 
 # =========================
-# PAGE CONFIG (PRO LOOK)
+# KONFIGURASI HALAMAN
 # =========================
 st.set_page_config(
-    page_title="EngsetPro Professional",
+    page_title="EngsetPro Simulator",
     page_icon="📡",
-    layout="wide"
+    layout="wide",
+    initial_sidebar_state="expanded"
 )
 
-
 # =========================
-# CLEAN BLUE-WHITE UI STYLE
+# TEMA STARTUP MODERN (BIRU - PUTIH)
 # =========================
 st.markdown("""
 <style>
 
-body {
-    background-color: #ffffff;
+html, body, [class*='css'] {
+    font-family: 'Inter', sans-serif;
+    background: #f8fafc;
 }
 
-.main-title {
-    font-size: 38px;
+.header {
+    padding: 28px;
+    border-radius: 16px;
+    background: linear-gradient(135deg, #1d4ed8, #3b82f6);
+    color: white;
+    box-shadow: 0 10px 25px rgba(29,78,216,0.25);
+}
+
+.header h1 {
+    margin: 0;
+    font-size: 34px;
     font-weight: 800;
-    color: #1d4ed8;
 }
 
-.sub-title {
-    font-size: 16px;
-    color: #64748b;
-    margin-bottom: 10px;
+.header p {
+    margin-top: 6px;
+    opacity: 0.9;
 }
 
 .card {
     background: white;
     padding: 18px;
-    border-radius: 14px;
-    border: 1px solid #e5e7eb;
-    box-shadow: 0px 2px 10px rgba(0,0,0,0.05);
+    border-radius: 16px;
+    border: 1px solid #e2e8f0;
+    box-shadow: 0 6px 18px rgba(0,0,0,0.05);
 }
 
-.metric-box {
-    background: #f0f6ff;
-    padding: 15px;
+[data-testid="metric-container"] {
+    background: #eef2ff;
+    border-radius: 14px;
+    padding: 12px;
+    border: 1px solid #c7d2fe;
+}
+
+.stButton > button {
+    background: linear-gradient(135deg, #2563eb, #1d4ed8);
+    color: white;
+    font-weight: 600;
     border-radius: 12px;
-    text-align: center;
-    border: 1px solid #dbeafe;
+    padding: 10px 18px;
+    border: none;
+}
+
+.stButton > button:hover {
+    background: linear-gradient(135deg, #1d4ed8, #1e40af);
+}
+
+section[data-testid="stSidebar"] {
+    background: #0f172a;
+}
+
+section[data-testid="stSidebar"] * {
+    color: white;
 }
 
 </style>
 """, unsafe_allow_html=True)
 
+# =========================
+# HEADER
+# =========================
+st.markdown("""
+<div class='header'>
+    <h1>📡 EngsetPro</h1>
+    <p>Simulasi Probabilitas Blocking Sistem Telekomunikasi (Gaya Startup Profesional)</p>
+</div>
+""", unsafe_allow_html=True)
 
 # =========================
-# ENGSET MODEL
+# MODEL ENGSET
 # =========================
 def nCr(n, r):
     if r > n:
         return 0
     return factorial(n) // (factorial(r) * factorial(n - r))
 
-
 def engset_pb(S, N, M):
     num = nCr(S - 1, N) * (M ** N)
     den = sum(nCr(S - 1, k) * (M ** k) for k in range(N + 1))
     return num / den if den != 0 else 0
-
 
 def iterate(S, N, rho):
     M = rho
@@ -100,63 +135,45 @@ def iterate(S, N, rho):
 
     return M_new, Pb, data, i
 
-
 # =========================
 # SESSION STATE
 # =========================
 if "history" not in st.session_state:
     st.session_state.history = []
 
-
 # =========================
-# HEADER
+# SIDEBAR
 # =========================
-st.markdown("<div class='main-title'>📡 EngsetPro Simulator</div>", unsafe_allow_html=True)
-st.markdown("<div class='sub-title'>Professional Blocking Probability Analysis System</div>", unsafe_allow_html=True)
-
-st.divider()
-
-
-# =========================
-# SIDEBAR NAV (clean pro)
-# =========================
-page = st.sidebar.radio(
-    "Navigation",
-    ["🏠 Dashboard", "📊 Analysis", "📁 History"]
-)
+st.sidebar.title("📌 Menu Navigasi")
+page = st.sidebar.radio("Pilih Halaman", ["Dashboard", "Analisis", "Riwayat"])
 
 st.sidebar.markdown("---")
-st.sidebar.info("Engineering Simulation Tool")
-
+st.sidebar.caption("EngsetPro v2 • Sistem Simulasi Telekomunikasi")
 
 # =========================
 # DASHBOARD
 # =========================
-if page == "🏠 Dashboard":
+if page == "Dashboard":
 
-    st.markdown("## 📥 Input Parameter")
+    st.markdown("### 📥 Input Parameter Sistem")
 
     col1, col2, col3 = st.columns(3)
 
     with col1:
-        S = st.number_input("Number of Sources (S)", min_value=1, value=10)
-
+        S = st.number_input("Jumlah Sumber (S)", min_value=1, value=10)
     with col2:
-        N = st.number_input("Number of Channels (N)", min_value=1, value=3)
-
+        N = st.number_input("Jumlah Kanal (N)", min_value=1, value=3)
     with col3:
-        rho = st.number_input("Traffic per Source (ρ)", min_value=0.0, value=0.5)
+        rho = st.number_input("Traffic per Sumber (ρ)", min_value=0.0, value=0.5)
 
-    st.markdown("---")
-
-    if st.button("🚀 RUN ANALYSIS"):
+    if st.button("🚀 Jalankan Simulasi"):
 
         if N >= S:
-            st.error("Channel must be smaller than Source (N < S)")
+            st.error("Jumlah kanal harus lebih kecil dari sumber")
         else:
             M, Pb, iter_data, iters = iterate(S, N, rho)
 
-            status = "OPTIMAL" if Pb < 0.2 else "CONGESTED"
+            status = "OPTIMAL" if Pb < 0.2 else "OVERLOAD"
 
             st.session_state.result = {
                 "S": S,
@@ -167,43 +184,39 @@ if page == "🏠 Dashboard":
                 "status": status,
                 "iter": iters,
                 "iter_data": iter_data,
-                "time": datetime.now().strftime("%d-%m-%Y %H:%M:%S")
+                "time": datetime.now().strftime("%d-%m-%Y %H:%M")
             }
 
             st.session_state.history.append(st.session_state.result)
 
-    # RESULT DASHBOARD
     if "result" in st.session_state:
-
         r = st.session_state.result
 
-        st.markdown("### 📊 Results Overview")
+        st.markdown("### 📊 Hasil Analisis")
 
         c1, c2, c3, c4 = st.columns(4)
 
-        c1.metric("Blocking Probability", f"{r['Pb']:.6f}")
-        c2.metric("Traffic Idle (M)", f"{r['M']:.6f}")
-        c3.metric("Iterations", r["iter"])
-        c4.metric("Status", r["status"])
-
+        c1.metric("Probabilitas Blocking", f"{r['Pb']:.6f}")
+        c2.metric("Traffic Idle", f"{r['M']:.6f}")
+        c3.metric("Iterasi", r["iter"])
+        c4.metric("Status Sistem", r["status"])
 
 # =========================
-# ANALYSIS PAGE
+# ANALISIS
 # =========================
-elif page == "📊 Analysis":
+elif page == "Analisis":
 
-    st.markdown("## 📊 System Analysis")
+    st.markdown("### 📊 Analisis Sistem")
 
     if "result" not in st.session_state:
-        st.warning("No simulation data available")
+        st.warning("Belum ada data simulasi")
     else:
-
         r = st.session_state.result
 
-        st.markdown("### 🔁 Convergence Iteration Table")
+        st.markdown("#### Tabel Konvergensi Iterasi")
         st.dataframe(r["iter_data"], use_container_width=True)
 
-        st.markdown("### 📈 Blocking Probability Graph")
+        st.markdown("#### Grafik Probabilitas Blocking")
 
         S = r["S"]
         rho = r["rho"]
@@ -212,47 +225,28 @@ elif page == "📊 Analysis":
         y = [engset_pb(S, n, rho) for n in x]
 
         fig, ax = plt.subplots()
-        ax.plot(x, y, linewidth=2, color="#1d4ed8")
+        ax.plot(x, y, linewidth=2)
         ax.axhline(0.2, linestyle="--", color="red")
-        ax.set_xlabel("Number of Channels")
-        ax.set_ylabel("Blocking Probability")
-        ax.grid(True)
+        ax.set_xlabel("Jumlah Kanal")
+        ax.set_ylabel("Probabilitas Blocking")
+        ax.grid(True, alpha=0.3)
 
         st.pyplot(fig)
 
-
 # =========================
-# HISTORY PAGE
+# RIWAYAT
 # =========================
-elif page == "📁 History":
+elif page == "Riwayat":
 
-    st.markdown("## 📁 Simulation History")
+    st.markdown("### 📁 Riwayat Simulasi")
 
     if st.session_state.history:
-
-        table = []
-
-        for i, r in enumerate(st.session_state.history, 1):
-            table.append([
-                i,
-                r["time"],
-                r["S"],
-                r["N"],
-                r["rho"],
-                round(r["M"], 6),
-                round(r["Pb"], 6),
-                r["iter"],
-                r["status"]
-            ])
-
-        st.dataframe(table, use_container_width=True)
-
+        st.dataframe(st.session_state.history, use_container_width=True)
     else:
-        st.info("No history yet")
-
+        st.info("Belum ada riwayat")
 
 # =========================
-# PROFESSIONAL PDF EXPORT
+# PDF PROFESIONAL EXPORT (DITINGKATKAN)
 # =========================
 def export_pdf(data, fig):
 
@@ -260,35 +254,54 @@ def export_pdf(data, fig):
     doc = SimpleDocTemplate(buffer)
 
     styles = getSampleStyleSheet()
+
+    title_style = ParagraphStyle(
+        'TitleStyle',
+        parent=styles['Title'],
+        alignment=TA_CENTER,
+        fontSize=20,
+        textColor=colors.HexColor("#1d4ed8")
+    )
+
+    normal_style = ParagraphStyle(
+        'NormalStyle',
+        parent=styles['BodyText'],
+        fontSize=10,
+        leading=14
+    )
+
     elements = []
 
-    # ================= COVER =================
-    elements.append(Paragraph("ENGSETPRO SIMULATION REPORT", styles["Title"]))
-    elements.append(Spacer(1, 12))
+    # COVER
+    elements.append(Paragraph("ENGSETPRO SIMULATION REPORT", title_style))
+    elements.append(Spacer(1, 10))
 
-    elements.append(Paragraph("Professional Engset Blocking Probability Analysis", styles["BodyText"]))
-    elements.append(Spacer(1, 12))
+    elements.append(Paragraph(
+        "Laporan Analisis Probabilitas Blocking Sistem Telekomunikasi Berbasis Model Engset",
+        normal_style
+    ))
+    elements.append(Spacer(1, 20))
 
-    # ================= PARAMETERS =================
-    elements.append(Paragraph("1. System Parameters", styles["Heading2"]))
+    # PARAMETER
+    elements.append(Paragraph("1. Parameter Sistem", styles['Heading2']))
 
     param = f"""
-    <b>Sources (S):</b> {data['S']}<br/>
-    <b>Channels (N):</b> {data['N']}<br/>
-    <b>Traffic per Source (ρ):</b> {data['rho']}<br/>
-    <b>Idle Traffic (M):</b> {data['M']:.6f}<br/>
-    <b>Blocking Probability:</b> {data['Pb']:.6f}<br/>
-    <b>Status:</b> {data['status']}<br/>
-    <b>Iterations:</b> {data['iter']}<br/>
+    Sumber (S): {data['S']}<br/>
+    Kanal (N): {data['N']}<br/>
+    Traffic per Sumber (ρ): {data['rho']}<br/>
+    Traffic Idle (M): {data['M']:.6f}<br/>
+    Probabilitas Blocking: {data['Pb']:.6f}<br/>
+    Status: {data['status']}<br/>
+    Iterasi: {data['iter']}<br/>
     """
 
-    elements.append(Paragraph(param, styles["BodyText"]))
-    elements.append(Spacer(1, 12))
+    elements.append(Paragraph(param, normal_style))
+    elements.append(Spacer(1, 15))
 
-    # ================= ITERATION TABLE =================
-    elements.append(Paragraph("2. Iteration Convergence", styles["Heading2"]))
+    # TABEL
+    elements.append(Paragraph("2. Konvergensi Iterasi", styles['Heading2']))
 
-    table_data = [["Iter", "M", "Pb", "Diff"]]
+    table_data = [["Iterasi", "M", "Pb", "Selisih"]]
     table_data += [[str(x) for x in row] for row in data["iter_data"]]
 
     table = Table(table_data)
@@ -296,68 +309,33 @@ def export_pdf(data, fig):
     table.setStyle(TableStyle([
         ("BACKGROUND", (0,0), (-1,0), colors.HexColor("#1d4ed8")),
         ("TEXTCOLOR", (0,0), (-1,0), colors.white),
+        ("ALIGN", (0,0), (-1,-1), "CENTER"),
         ("GRID", (0,0), (-1,-1), 0.5, colors.grey),
         ("FONTSIZE", (0,0), (-1,-1), 8),
-        ("ALIGN", (0,0), (-1,-1), "CENTER"),
+        ("BOTTOMPADDING", (0,0), (-1,0), 8)
     ]))
 
     elements.append(table)
-    elements.append(Spacer(1, 12))
+    elements.append(Spacer(1, 15))
 
-    # ================= GRAPH =================
+    # GRAFIK
     img = io.BytesIO()
-    fig.savefig(img, format="png", dpi=200)
+    fig.savefig(img, format="png", dpi=250, bbox_inches='tight')
     img.seek(0)
 
-    elements.append(Paragraph("3. Blocking Probability Graph", styles["Heading2"]))
+    elements.append(Paragraph("3. Grafik Probabilitas Blocking", styles['Heading2']))
     elements.append(Image(img, width=450, height=250))
 
-    elements.append(Spacer(1, 12))
+    elements.append(Spacer(1, 15))
 
-    # ================= CONCLUSION =================
-    elements.append(Paragraph("4. Conclusion", styles["Heading2"]))
+    # KESIMPULAN
+    elements.append(Paragraph("4. Kesimpulan", styles['Heading2']))
 
-    conclusion = f"""
-    The system is classified as <b>{data['status']}</b> based on the calculated blocking probability.
-    """
+    conclusion = f"Sistem berada dalam kondisi <b>{data['status']}</b> berdasarkan hasil analisis probabilitas blocking."
 
-    elements.append(Paragraph(conclusion, styles["BodyText"]))
+    elements.append(Paragraph(conclusion, normal_style))
 
     doc.build(elements)
     buffer.seek(0)
 
     return buffer
-
-
-# =========================
-# EXPORT BUTTON
-# =========================
-if page == "📁 History":
-
-    if st.button("📥 EXPORT PROFESSIONAL REPORT"):
-
-        if st.session_state.history:
-
-            last = st.session_state.history[-1]
-
-            S = last["S"]
-            rho = last["rho"]
-
-            x = list(range(1, S))
-            y = [engset_pb(S, n, rho) for n in x]
-
-            fig, ax = plt.subplots()
-            ax.plot(x, y, color="#1d4ed8")
-            ax.axhline(0.2, linestyle="--", color="red")
-            ax.grid()
-
-            pdf = export_pdf(last, fig)
-
-            st.download_button(
-                "Download Professional PDF",
-                data=pdf,
-                file_name="EngsetPro_Professional_Report.pdf",
-                mime="application/pdf"
-            )
-        else:
-            st.error("No data to export")
