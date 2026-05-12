@@ -2,16 +2,52 @@ import streamlit as st
 import matplotlib.pyplot as plt
 from math import factorial
 from datetime import datetime
+import io
 
-from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
+from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer
 from reportlab.lib.styles import getSampleStyleSheet
-from reportlab.lib import colors
 
 
-# =====================================================
-# ENGSET LOGIC (TIDAK DIUBAH)
-# =====================================================
+# =========================
+# PAGE CONFIG
+# =========================
+st.set_page_config(
+    page_title="EngsetPro Simulator",
+    page_icon="📡",
+    layout="wide"
+)
 
+
+# =========================
+# STYLE (simple clean UI)
+# =========================
+st.markdown("""
+<style>
+    .main-title {
+        font-size: 34px;
+        font-weight: 800;
+        color: #1f4fff;
+    }
+
+    .card {
+        padding: 20px;
+        border-radius: 15px;
+        background-color: #f5f7ff;
+        box-shadow: 0px 2px 8px rgba(0,0,0,0.08);
+        margin-bottom: 15px;
+    }
+
+    .subtitle {
+        font-size: 18px;
+        color: #666;
+    }
+</style>
+""", unsafe_allow_html=True)
+
+
+# =========================
+# ENGSET LOGIC
+# =========================
 def nCr(n, r):
     if r > n:
         return 0
@@ -19,9 +55,9 @@ def nCr(n, r):
 
 
 def engset_pb(S, N, M):
-    numerator = nCr(S - 1, N) * (M ** N)
-    denominator = sum(nCr(S - 1, k) * (M ** k) for k in range(N + 1))
-    return numerator / denominator if denominator != 0 else 0
+    num = nCr(S - 1, N) * (M ** N)
+    den = sum(nCr(S - 1, k) * (M ** k) for k in range(N + 1))
+    return num / den if den != 0 else 0
 
 
 def iterate(S, N, rho):
@@ -35,7 +71,7 @@ def iterate(S, N, rho):
         M_new = rho * (1 - Pb)
         diff = abs(M_new - M)
 
-        data.append([i, M, Pb, diff])
+        data.append([i, round(M, 6), round(Pb, 6), round(diff, 6)])
 
         if diff < tol:
             break
@@ -46,48 +82,49 @@ def iterate(S, N, rho):
     return M_new, Pb, data, i
 
 
-# =====================================================
+# =========================
 # SESSION STATE
-# =====================================================
-
+# =========================
 if "history" not in st.session_state:
     st.session_state.history = []
 
-if "page" not in st.session_state:
-    st.session_state.page = "Home"
+
+# =========================
+# HEADER
+# =========================
+st.markdown("<div class='main-title'>📡 EngsetPro Simulator</div>", unsafe_allow_html=True)
+st.markdown("<div class='subtitle'>Blocking Probability Analysis System</div>", unsafe_allow_html=True)
+
+st.divider()
 
 
-# =====================================================
-# SIDEBAR NAVBAR (mirip navbar kamu)
-# =====================================================
-
-st.sidebar.title("ENGSETPRO")
-
-if st.sidebar.button("🏠 Home"):
-    st.session_state.page = "Home"
-
-if st.sidebar.button("📈 Analisis"):
-    st.session_state.page = "Analisis"
-
-if st.sidebar.button("🕘 Riwayat"):
-    st.session_state.page = "Riwayat"
+# =========================
+# SIDEBAR NAVIGATION
+# =========================
+menu = st.sidebar.radio("Navigation", ["Home", "Analisis", "Riwayat"])
 
 
-# =====================================================
-# HOME PAGE (INPUT + RESULT)
-# =====================================================
+# =========================
+# HOME PAGE
+# =========================
+if menu == "Home":
 
-if st.session_state.page == "Home":
+    st.markdown("## 📥 Input Parameter")
 
-    st.title("ENGSETPRO SIMULATOR")
+    col1, col2, col3 = st.columns(3)
 
-    st.subheader("Input Parameter")
+    with col1:
+        S = st.number_input("Source (S)", min_value=1, value=10)
 
-    S = st.number_input("Jumlah Source (S)", min_value=1, value=10)
-    N = st.number_input("Jumlah Channel (N)", min_value=1, value=3)
-    rho = st.number_input("Traffic per Source (ρ)", min_value=0.0, value=0.5)
+    with col2:
+        N = st.number_input("Channel (N)", min_value=1, value=3)
 
-    if st.button("HITUNG SEKARANG"):
+    with col3:
+        rho = st.number_input("Traffic (ρ)", min_value=0.0, value=0.5)
+
+    st.divider()
+
+    if st.button("🚀 HITUNG SEKARANG"):
 
         if N >= S:
             st.error("N harus lebih kecil dari S")
@@ -110,37 +147,40 @@ if st.session_state.page == "Home":
 
             st.session_state.history.append(st.session_state.result)
 
-    # RESULT DISPLAY
+    # RESULT CARD
     if "result" in st.session_state:
 
         r = st.session_state.result
 
-        st.success("HASIL ANALISIS")
+        st.markdown("### 📊 Hasil")
 
-        st.write("Blocking Probability:", round(r["Pb"], 6))
-        st.write("Traffic Idle (M):", round(r["M"], 6))
-        st.write("Iterasi:", r["iter"])
-        st.write("Status:", r["status"])
+        col1, col2, col3, col4 = st.columns(4)
+
+        col1.metric("Blocking Prob", f"{r['Pb']:.6f}")
+        col2.metric("Traffic Idle", f"{r['M']:.6f}")
+        col3.metric("Iterasi", r["iter"])
+        col4.metric("Status", r["status"])
 
 
-# =====================================================
-# ANALISIS PAGE (TABLE + GRAPH)
-# =====================================================
+# =========================
+# ANALISIS PAGE
+# =========================
+elif menu == "Analisis":
 
-elif st.session_state.page == "Analisis":
-
-    st.title("GRAFIK ANALISIS")
+    st.markdown("## 📈 Analisis Sistem")
 
     if "result" not in st.session_state:
-        st.warning("Belum ada data")
+        st.warning("Belum ada data perhitungan")
     else:
         r = st.session_state.result
 
-        st.subheader("Tabel Iterasi")
-
+        # ITERATION TABLE
+        st.markdown("### 🔁 Iterasi Konvergensi")
         st.table(r["iter_data"])
 
-        # GRAPH (SAMA LOGIKA)
+        # GRAPH
+        st.markdown("### 📊 Grafik Blocking Probability")
+
         S = r["S"]
         rho = r["rho"]
 
@@ -148,22 +188,21 @@ elif st.session_state.page == "Analisis":
         y = [engset_pb(S, n, rho) for n in x]
 
         fig, ax = plt.subplots()
-        ax.plot(x, y, marker="o")
+        ax.plot(x, y, marker="o", linewidth=2)
         ax.axhline(0.2, linestyle="--", color="red")
         ax.set_xlabel("Channel")
         ax.set_ylabel("P(b)")
-        ax.grid()
+        ax.grid(True)
 
         st.pyplot(fig)
 
 
-# =====================================================
+# =========================
 # HISTORY PAGE
-# =====================================================
+# =========================
+elif menu == "Riwayat":
 
-elif st.session_state.page == "Riwayat":
-
-    st.title("RIWAYAT SIMULASI")
+    st.markdown("## 🕘 Riwayat Simulasi")
 
     if st.session_state.history:
 
@@ -182,19 +221,20 @@ elif st.session_state.page == "Riwayat":
                 r["status"]
             ])
 
-        st.table(table)
+        st.dataframe(table, use_container_width=True)
 
     else:
         st.info("Belum ada riwayat")
 
 
-# =====================================================
-# EXPORT PDF
-# =====================================================
+# =========================
+# PDF EXPORT (STREAMLIT SAFE)
+# =========================
+def export_pdf(data):
 
-def export_pdf(data, filename="engset_report.pdf"):
+    buffer = io.BytesIO()
+    doc = SimpleDocTemplate(buffer)
 
-    doc = SimpleDocTemplate(filename)
     styles = getSampleStyleSheet()
     elements = []
 
@@ -205,23 +245,36 @@ def export_pdf(data, filename="engset_report.pdf"):
     S: {data['S']}<br/>
     N: {data['N']}<br/>
     ρ: {data['rho']}<br/>
-    M: {data['M']}<br/>
-    P(b): {data['Pb']}<br/>
+    M: {data['M']:.6f}<br/>
+    P(b): {data['Pb']:.6f}<br/>
     Status: {data['status']}<br/>
+    Iterasi: {data['iter']}<br/>
     """
 
     elements.append(Paragraph(text, styles["BodyText"]))
 
     doc.build(elements)
 
+    buffer.seek(0)
+    return buffer
 
-# BUTTON EXPORT
-if st.session_state.page == "Riwayat":
 
-    if st.button("EXPORT PDF"):
+# =========================
+# DOWNLOAD PDF BUTTON
+# =========================
+if menu == "Riwayat":
+
+    if st.button("📥 EXPORT PDF"):
 
         if st.session_state.history:
-            export_pdf(st.session_state.history[-1])
-            st.success("PDF berhasil dibuat")
+
+            pdf = export_pdf(st.session_state.history[-1])
+
+            st.download_button(
+                label="Download Report PDF",
+                data=pdf,
+                file_name="engset_report.pdf",
+                mime="application/pdf"
+            )
         else:
-            st.error("Tidak ada data")
+            st.error("Tidak ada data untuk diexport")
